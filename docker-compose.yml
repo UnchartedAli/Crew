@@ -1,0 +1,8 @@
+services:
+  crew:
+    image:  unchartedali/crew:latest
+    restart: always
+    env_file: .env
+    network_mode: host
+    volumes:
+      - /var/lib/crew:/var/lib/crew

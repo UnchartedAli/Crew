@@ -1,0 +1,79 @@
+baseURL: /
+title: Crew Tutorials
+relativeURLs: true
+enableRobotsTXT: false
+disableKinds: [taxonomy, term, rss, sitemap]
+defaultContentLanguage: en
+hasCJKLanguage: true
+
+languages:
+  en:
+    languageName: English
+    languageCode: en
+    languageDirection: ltr
+    weight: 1
+    title: Crew Tutorials
+    params:
+      tutorialVersion: "2026-10-11 23:59"
+  fa:
+    languageName: فارسی
+    languageCode: fa
+    languageDirection: rtl
+    weight: 2
+    title: راهنمای Crew
+    params:
+      tutorialVersion: "19-07-1405 23:59"
+
+module:
+  hugoVersion:
+    extended: true
+    min: "0.146.0"
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  highlight:
+    noClasses: false
+  goldmark:
+    renderer:
+      unsafe: true
+
+menu:
+  main:
+    - identifier: backToPanel
+      name: Back to panel
+      url: "#panel"
+      weight: 1
+      params:
+        icon: home
+    - identifier: search
+      name: Search
+      weight: 2
+      params:
+        type: search
+
+params:
+  description: Practical guides for the Crew panel.
+  externalLinkDecoration: true
+  navbar:
+    displayTitle: true
+    displayLogo: false
+    width: wide
+  theme:
+    default: dark
+    displayToggle: false
+  footer:
+    enable: false
+  displayUpdatedDate: false
+  search:
+    enable: true
+    type: flexsearch
+    flexsearch:
+      index: content
+      tokenize: forward
+  page:
+    width: wide
+    contextMenu:
+      enable: false
+  toc:
+    displayTags: false
