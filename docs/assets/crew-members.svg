@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+<title>The crew</title>
+<rect width="640" height="640" fill="#08080a"/>
+<circle cx="320" cy="320" r="210" fill="none" stroke="#e8e4dc" stroke-opacity="0.12" stroke-dasharray="2 10"/>
+<circle cx="320" cy="320" r="120" fill="none" stroke="#e8e4dc" stroke-opacity="0.08"/>
+<line x1="320" y1="320" x2="320.0" y2="110.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="320.0" y1="110.0" x2="501.9" y2="215.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<line x1="320" y1="320" x2="501.9" y2="215.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="501.9" y1="215.0" x2="501.9" y2="425.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<line x1="320" y1="320" x2="501.9" y2="425.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="501.9" y1="425.0" x2="320.0" y2="530.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<line x1="320" y1="320" x2="320.0" y2="530.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="320.0" y1="530.0" x2="138.1" y2="425.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<line x1="320" y1="320" x2="138.1" y2="425.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="138.1" y1="425.0" x2="138.1" y2="215.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<line x1="320" y1="320" x2="138.1" y2="215.0" stroke="#e8e4dc" stroke-opacity="0.18"/>
+<line x1="138.1" y1="215.0" x2="320.0" y2="110.0" stroke="#e8e4dc" stroke-opacity="0.1"/>
+<circle cx="320.0" cy="110.0" r="16" fill="#08080a" stroke="#c4121f" stroke-width="4"/>
+<circle cx="320.0" cy="110.0" r="4" fill="#c4121f"/>
+<circle cx="501.9" cy="215.0" r="12" fill="#08080a" stroke="#e8e4dc" stroke-width="4"/>
+<circle cx="501.9" cy="215.0" r="4" fill="#e8e4dc"/>
+<circle cx="501.9" cy="425.0" r="12" fill="#08080a" stroke="#e8e4dc" stroke-width="4"/>
+<circle cx="501.9" cy="425.0" r="4" fill="#e8e4dc"/>
+<circle cx="320.0" cy="530.0" r="12" fill="#08080a" stroke="#e8e4dc" stroke-width="4"/>
+<circle cx="320.0" cy="530.0" r="4" fill="#e8e4dc"/>
+<circle cx="138.1" cy="425.0" r="12" fill="#08080a" stroke="#e8e4dc" stroke-width="4"/>
+<circle cx="138.1" cy="425.0" r="4" fill="#e8e4dc"/>
+<circle cx="138.1" cy="215.0" r="12" fill="#08080a" stroke="#e8e4dc" stroke-width="4"/>
+<circle cx="138.1" cy="215.0" r="4" fill="#e8e4dc"/>
+<circle cx="320" cy="320" r="46" fill="none" stroke="#c4121f" stroke-width="12"/>
+<circle cx="320" cy="320" r="14" fill="#c4121f"/>
+</svg>

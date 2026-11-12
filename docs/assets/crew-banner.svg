@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360">
+  <title>Crew — by UnchartedAli</title>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#c4121f" stop-opacity="0.26"/>
+      <stop offset="0.6" stop-color="#c4121f" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#c4121f" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="360" fill="#08080a"/>
+  <rect width="1280" height="360" fill="url(#glow)"/>
+  <g stroke="#e8e4dc" stroke-opacity="0.07"><line x1="0" y1="56" x2="1280" y2="56"/><line x1="0" y1="304" x2="1280" y2="304"/></g>
+  <g fill="none" stroke="#c4121f" stroke-linecap="round" transform="translate(372 78) scale(0.31)">
+    <circle cx="256" cy="256" r="170" stroke-width="32" stroke-dasharray="814 254" transform="rotate(38 256 256)"/>
+    <circle cx="256" cy="256" r="40" stroke-width="30"/>
+  </g>
+  <text x="548" y="176" font-family="Caladea, Georgia, serif" font-size="104" font-weight="400" letter-spacing="18" fill="#e8e4dc">CREW</text>
+  <text x="640" y="244" text-anchor="middle" font-family="DejaVu Sans Mono, JetBrains Mono, monospace" font-size="14" letter-spacing="6" fill="#7b7872">PROXY MANAGEMENT · BY UNCHARTEDALI</text>
+  <text x="640" y="338" text-anchor="middle" font-family="IPAGothic, Cormorant Garamond, serif" font-size="17" letter-spacing="8" fill="#7b7872" fill-opacity="0.75">静かに、意図を持って</text>
+</svg>
