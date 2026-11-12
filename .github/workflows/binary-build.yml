@@ -80,7 +80,7 @@ jobs:
         run: bash scripts/crew/test-database-maintenance.sh
 
       - name: Upload dashboard
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dashboard-build
           path: dashboard/build
@@ -151,7 +151,7 @@ jobs:
 
       - name: Upload Linux package artifact
         if: matrix.asset_arch == 'amd64' || github.ref_type == 'tag' || github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.full_matrix == true)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crew-linux-${{ matrix.asset_arch }}
           path: dist/crew-linux-${{ matrix.asset_arch }}.tar.gz
@@ -207,7 +207,7 @@ jobs:
             -Force
 
       - name: Upload Windows package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: crew-windows-amd64
           path: dist/crew-windows-amd64.zip
