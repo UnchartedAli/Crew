@@ -1,0 +1,327 @@
+package gateway
+
+import (
+	"context"
+	"crypto/tls"
+	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/pires/go-proxyproto"
+	certificateapp "github.com/UnchartedAli/Crew/internal/app/certificates"
+)
+
+type Server struct {
+	cfg         Config
+	server      *http.Server
+	servers     []*http.Server
+	tls         *tls.Config
+	listeners   []net.Listener
+	listenerMu  sync.Mutex
+	readyOnce   sync.Once
+	readyCh     chan struct{}
+	proxyPolicy proxyproto.ConnPolicyFunc
+}
+
+type hostAwareHandler interface {
+	http.Handler
+	HandlesHost(string) bool
+}
+
+func NewServer(cfg Config) (*Server, error) {
+	if (strings.TrimSpace(cfg.TLSCertFile) == "") != (strings.TrimSpace(cfg.TLSKeyFile) == "") {
+		return nil, fmt.Errorf("incomplete TLS configuration: set both UVICORN_SSL_CERTFILE and UVICORN_SSL_KEYFILE, or leave both empty for plain HTTP")
+	}
+	resolver, err := certificateapp.NewResolver(cfg.CertificateBase, cfg.TLSCertFile, cfg.TLSKeyFile)
+	if err != nil && (strings.TrimSpace(cfg.CertificateBase) != "" || strings.TrimSpace(cfg.TLSCertFile) != "" || strings.TrimSpace(cfg.TLSKeyFile) != "") {
+		return nil, err
+	}
+	var tlsConfig *tls.Config
+	if resolver != nil && resolver.Ready() {
+		tlsConfig = &tls.Config{
+			MinVersion:     tls.VersionTLS12,
+			GetCertificate: resolver.GetCertificate,
+		}
+	}
+
+	dashboard := newDashboardFiles(cfg)
+	apiHandler := cfg.APIHandler
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/__crew_go/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte("ok\n"))
+	})
+	mux.HandleFunc("/__crew_go/api_healthz", func(w http.ResponseWriter, r *http.Request) {
+		if apiHandler == nil {
+			http.Error(w, "Go API handler is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		apiHandler.ServeHTTP(w, apiHealthRequest(r))
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if handler, ok := apiHandler.(hostAwareHandler); ok && handler.HandlesHost(r.Host) {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		if dashboard.matches(r) {
+			dashboard.serve(w, r)
+			return
+		}
+		if isDeprecatedRuntimeRoute(r) {
+			http.Error(w, deprecatedRuntimeRouteDetail(r), http.StatusGone)
+			return
+		}
+		if isDeprecatedMasterNodeRoute(r) {
+			http.Error(w, "master node usage/runtime routes have been removed", http.StatusGone)
+			return
+		}
+		if apiHandler == nil {
+			http.Error(w, "Go API handler is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		apiHandler.ServeHTTP(w, r)
+	})
+
+	servers := make([]*http.Server, 0, 1+len(cfg.ExtraListenPorts))
+	mainServer := newHTTPServer(cfg.Addr, mux)
+	servers = append(servers, mainServer)
+	for _, addr := range extraListenAddrs(cfg.Addr, cfg.ExtraListenPorts) {
+		servers = append(servers, newHTTPServer(addr, mux))
+	}
+
+	var proxyPolicy proxyproto.ConnPolicyFunc
+	if cfg.ProxyProtocol {
+		proxyPolicy, err = proxyProtocolConnPolicy(cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Server{
+		cfg:         cfg,
+		server:      mainServer,
+		servers:     servers,
+		tls:         tlsConfig,
+		readyCh:     make(chan struct{}),
+		proxyPolicy: proxyPolicy,
+	}, nil
+}
+
+func proxyProtocolConnPolicy(cfg Config) (proxyproto.ConnPolicyFunc, error) {
+	trusted := cfg.ProxyProtocolTrusted
+	if len(trusted) == 0 {
+		trusted = defaultProxyProtocolTrusted
+	}
+	if strings.EqualFold(strings.TrimSpace(cfg.ProxyProtocolPolicy), "require") {
+		return proxyproto.TrustProxyHeaderFromRanges(trusted)
+	}
+	return proxyproto.PolicyFromRanges(trusted, proxyproto.USE, proxyproto.REJECT)
+}
+
+func (s *Server) Ready() <-chan struct{} {
+	return s.readyCh
+}
+
+func (s *Server) ListenAddrs() []string {
+	s.listenerMu.Lock()
+	defer s.listenerMu.Unlock()
+	addrs := make([]string, 0, len(s.listeners))
+	for _, l := range s.listeners {
+		if l != nil {
+			addrs = append(addrs, l.Addr().String())
+		}
+	}
+	return addrs
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 15 * time.Second,
+		// Backup imports are multipart uploads and may legitimately take several
+		// minutes on a slow connection. Keep a finite deadline while allowing the
+		// API upload limit to be reached without a spurious i/o timeout.
+		ReadTimeout: 15 * time.Minute,
+		IdleTimeout: 2 * time.Minute,
+		// WriteTimeout stays unset because dashboard WebSocket streams can be long-lived.
+	}
+}
+
+func apiHealthRequest(r *http.Request) *http.Request {
+	req := r.Clone(r.Context())
+	req.Method = http.MethodGet
+	req.URL.Path = "/__crew_api/healthz"
+	req.URL.RawPath = ""
+	req.URL.RawQuery = ""
+	return req
+}
+
+func isDeprecatedRuntimeRoute(r *http.Request) bool {
+	path := strings.TrimRight(r.URL.Path, "/")
+	return path == "/api/core/xray/update"
+}
+
+func deprecatedRuntimeRouteDetail(r *http.Request) string {
+	path := strings.TrimRight(r.URL.Path, "/")
+	if path == "/api/core/xray/update" {
+		return "Master runtime is node-only; update nodes instead."
+	}
+	return "Master runtime is node-only; update nodes instead."
+}
+
+func isDeprecatedMasterNodeRoute(r *http.Request) bool {
+	path := strings.TrimRight(r.URL.Path, "/")
+	switch path {
+	case "/api/node/master":
+		return r.Method == http.MethodGet || r.Method == http.MethodPut
+	case "/api/node/master/usage/reset":
+		return r.Method == http.MethodPost
+	default:
+		return false
+	}
+}
+
+func (s *Server) Run() error {
+	if len(s.servers) == 0 && s.server != nil {
+		s.servers = []*http.Server{s.server}
+	}
+	listeners := make([]net.Listener, len(s.servers))
+	for i, server := range s.servers {
+		addr := server.Addr
+		if addr == "" {
+			if s.tls != nil {
+				addr = ":https"
+			} else {
+				addr = ":http"
+			}
+		}
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			for j := 0; j < i; j++ {
+				_ = listeners[j].Close()
+			}
+			return err
+		}
+		listeners[i] = ln
+	}
+
+	s.listenerMu.Lock()
+	s.listeners = listeners
+	s.listenerMu.Unlock()
+	s.readyOnce.Do(func() {
+		close(s.readyCh)
+	})
+
+	errCh := make(chan error, len(s.servers))
+	for i, server := range s.servers {
+		server := server
+		ln := listeners[i]
+		var listener net.Listener = ln
+		if s.cfg.ProxyProtocol {
+			listener = &proxyproto.Listener{
+				Listener:          ln,
+				ReadHeaderTimeout: 10 * time.Second,
+				ConnPolicy:        s.proxyPolicy,
+			}
+		}
+
+		go func() {
+			var err error
+			if s.tls != nil {
+				server.TLSConfig = s.tls
+				err = server.ServeTLS(listener, "", "")
+			} else {
+				err = server.Serve(listener)
+			}
+			errCh <- err
+		}()
+	}
+	err := <-errCh
+	if errors.Is(err, http.ErrServerClosed) {
+		return nil
+	}
+	return err
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	s.readyOnce.Do(func() {
+		close(s.readyCh)
+	})
+	if len(s.servers) == 0 && s.server != nil {
+		s.servers = []*http.Server{s.server}
+	}
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(s.servers))
+	for _, server := range s.servers {
+		if server == nil {
+			continue
+		}
+		wg.Add(1)
+		go func(server *http.Server) {
+			defer wg.Done()
+			if err := server.Shutdown(ctx); err != nil {
+				errCh <- err
+			}
+		}(server)
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func extraListenAddrs(primary string, ports []int) []string {
+	host, primaryPort := splitListenAddr(primary)
+	seen := map[string]bool{primary: true}
+	if primaryPort != "" {
+		seen[net.JoinHostPort(host, primaryPort)] = true
+		if host == "" {
+			seen[":"+primaryPort] = true
+		}
+	}
+	out := []string{}
+	for _, port := range ports {
+		if port <= 0 || port > 65535 {
+			continue
+		}
+		portText := strconv.Itoa(port)
+		if portText == primaryPort {
+			continue
+		}
+		addr := net.JoinHostPort(host, portText)
+		if host == "" {
+			addr = ":" + portText
+		}
+		if seen[addr] {
+			continue
+		}
+		seen[addr] = true
+		out = append(out, addr)
+	}
+	return out
+}
+
+func splitListenAddr(addr string) (string, string) {
+	host, port, err := net.SplitHostPort(addr)
+	if err == nil {
+		return host, port
+	}
+	if strings.HasPrefix(addr, ":") && len(addr) > 1 {
+		return "", strings.TrimPrefix(addr, ":")
+	}
+	return "", ""
+}
